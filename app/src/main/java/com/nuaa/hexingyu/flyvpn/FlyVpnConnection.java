@@ -36,7 +36,12 @@ public class FlyVpnConnection implements Runnable{
     //在没有从内部接口或外部接口获得数据后，线程沉睡的时间
     private static final long IDLE_INTERVAL_MS = TimeUnit.MILLISECONDS.toMillis(100);
     //在握手完成和故障出现前，要等待的周期数
-    private static final int MAX_HANDSHAKE_ATTEMPTS = 50;
+    private static final int MAX_HANDSHAKE_ATTEMPTS = 1;
+
+
+
+    private des myDes;
+
 
 
     private final VpnService mService;
@@ -70,14 +75,15 @@ public class FlyVpnConnection implements Runnable{
     @Override
     public void run() {
 
+
         //根据ip地址和端口号创建套接字地址
         final SocketAddress serverAddress = new InetSocketAddress(mIp, mPort);
 
         //尝试着创建隧道
-        for (int attempt = 0; attempt < 3; ++attempt) {
+        for (int attempt = 0; attempt < 1; ++attempt) {
             try {
                 if (connectBody(serverAddress)) {
-                    attempt = 0;
+                    //attempt = 0;
                 }
             } catch (IOException e) {
                 e.printStackTrace();
@@ -148,6 +154,14 @@ public class FlyVpnConnection implements Runnable{
 
                         packet.limit(length);
                         //todo 加密函数
+
+                        byte [] aaa = new byte[10];
+                        //packet.get(aaa);
+
+
+
+                //        packet.array()[0]  ^= 1;
+
                         tunnel.write(packet);
 
 //                        String rs = getSHA256StrJava("test");
@@ -164,7 +178,7 @@ public class FlyVpnConnection implements Runnable{
 
 //                        if (packet.get(0) != 0) {
                             //todo 解密函数
-                            // Write the incoming packet to the output stream.
+
                             out.write(packet.array(), 0, length);
 //                        }
                         packet.clear();
@@ -187,13 +201,15 @@ public class FlyVpnConnection implements Runnable{
 
         } catch (IOException | InterruptedException e) {
             e.printStackTrace();
+        } catch (Exception e) {
+            e.printStackTrace();
         }
         return connected;
 
     }
 
     //与服务器进行连接，并将结果返回
-    private boolean getOutsideInterface(DatagramChannel tunnel) throws IOException, InterruptedException {
+    private boolean getOutsideInterface(DatagramChannel tunnel) throws Exception {
 
         //TODO 将密钥以sha256加密，并等待服务器返回认证信息
 
@@ -204,16 +220,21 @@ public class FlyVpnConnection implements Runnable{
 
 
         //写完数据后进行翻转，将一个处于存数据状态的缓冲区变为一个处于准备取数据的状态
-        String strKey = mKey.toString();
+        String strKey = new String(mKey);
 
 
-
+        //取得SHA256加密后的Key
         byte [] rs = getSHA256StrJava(strKey).getBytes();
-        packet.put((byte) 0).put(mKey).flip();
+
+
+
+
+        packet.put((byte) 0).put(rs).flip();
 
         //TODO 取消了多次发包
         //将下次读写的位置置为0
         packet.position(0);
+
         tunnel.write(packet);
 
         packet.clear();
